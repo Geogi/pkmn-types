@@ -1,8 +1,7 @@
-fn main() {
-    println!("Hello, world!");
-}
+use lazy_static::lazy_static;
 
-enum Type {
+#[derive(Debug, Copy, Clone, Eq, PartialEq, Ord, PartialOrd)]
+pub enum Type {
     Normal,
     Fight,
     Flying,
@@ -23,34 +22,28 @@ enum Type {
     Fairy,
 }
 
-enum Efficiency {
+#[derive(Debug, Copy, Clone, Eq, PartialEq, Ord, PartialOrd)]
+pub enum Effectiveness {
+    Nothing,
+    Half,
     Simple,
     Double,
-    Half,
-    None,
 }
 
 impl Type {
-    fn all() -> Vec<Type> {
-        use Type::*;
-        vec![
-            Normal, Fight, Flying, Poison, Ground, Rock, Bug, Ghost, Steel, Fire, Water, Grass,
-            Electric, Psychic, Ice, Dragon, Dark, Fairy,
-        ]
-    }
-    fn attacks(&self, other: Type) -> Efficiency {
-        use Efficiency::*;
+    pub fn attack(&self, other: Type) -> Effectiveness {
+        use Effectiveness::*;
         use Type::*;
         match self {
             Normal => match other {
                 Rock | Steel => Half,
-                Ghost => None,
+                Ghost => Nothing,
                 _ => Simple,
             },
             Fight => match other {
                 Normal | Rock | Steel | Dark | Ice => Double,
                 Flying | Poison | Bug | Psychic | Fairy => Half,
-                Ghost => None,
+                Ghost => Nothing,
                 _ => Simple,
             },
             Flying => match other {
@@ -61,13 +54,13 @@ impl Type {
             Poison => match other {
                 Grass | Fairy => Double,
                 Poison | Ground | Rock | Ghost => Half,
-                Steel => None,
+                Steel => Nothing,
                 _ => Simple,
             },
             Ground => match other {
                 Poison | Rock | Steel | Fire | Electric => Double,
                 Bug | Grass => Half,
-                Flying => None,
+                Flying => Nothing,
                 _ => Simple,
             },
             Rock => match other {
@@ -83,7 +76,7 @@ impl Type {
             Ghost => match other {
                 Ghost | Psychic => Double,
                 Dark => Half,
-                Normal => None,
+                Normal => Nothing,
                 _ => Simple,
             },
             Steel => match other {
@@ -109,13 +102,13 @@ impl Type {
             Electric => match other {
                 Flying | Water => Double,
                 Grass | Electric | Dragon => Half,
-                Ground => None,
+                Ground => Nothing,
                 _ => Simple,
             },
             Psychic => match other {
                 Fight | Poison => Double,
                 Steel | Psychic => Half,
-                None => Dark,
+                Dark => Nothing,
                 _ => Simple,
             },
             Ice => match other {
@@ -126,7 +119,7 @@ impl Type {
             Dragon => match other {
                 Dragon => Double,
                 Steel => Half,
-                Fairy => None,
+                Fairy => Nothing,
                 _ => Simple,
             },
             Dark => match other {
@@ -141,4 +134,77 @@ impl Type {
             },
         }
     }
+}
+
+#[derive(Debug, Copy, Clone, Eq, PartialEq)]
+pub struct Pokemon {
+    pub primary: Type,
+    pub secondary: Option<Type>,
+}
+
+#[derive(Debug, Copy, Clone, Eq, PartialEq, Ord, PartialOrd)]
+pub enum Resistance {
+    DoublyWeak,
+    Weak,
+    Standard,
+    Resistant,
+    DoublyResistant,
+    Immune,
+}
+
+impl Pokemon {
+    pub fn resist(&self, move_type: Type) -> Resistance {
+        use Effectiveness::*;
+        use Resistance::*;
+        if let Some(secondary) = self.secondary {
+            let ef_p = move_type.attack(self.primary);
+            let ef_s = move_type.attack(secondary);
+            match (ef_p, ef_s) {
+                (Nothing, _) | (_, Nothing) => Immune,
+                (Simple, Simple) | (Half, Double) | (Double, Half) => Standard,
+                (Simple, Half) | (Half, Simple) => Resistant,
+                (Simple, Double) | (Double, Simple) => Weak,
+                (Half, Half) => DoublyResistant,
+                (Double, Double) => DoublyWeak,
+            }
+        } else {
+            match move_type.attack(self.primary) {
+                Simple => Standard,
+                Double => Weak,
+                Half => Resistant,
+                Nothing => Immune,
+            }
+        }
+    }
+}
+
+lazy_static! {
+    pub static ref ALL_TYPES: Vec<Type> = {
+        use Type::*;
+        vec![
+            Normal, Fight, Flying, Poison, Ground, Rock, Bug, Ghost, Steel, Fire, Water, Grass,
+            Electric, Psychic, Ice, Dragon, Dark, Fairy,
+        ]
+    };
+    pub static ref ALL_POKEMON_NAIVE: Vec<Pokemon> = {
+        let mut all = vec![];
+        for single in &*ALL_TYPES {
+            all.push(Pokemon {
+                primary: *single,
+                secondary: None,
+            })
+        }
+        for primary in &*ALL_TYPES {
+            for secondary in &*ALL_TYPES {
+                if primary >= secondary {
+                    continue;
+                }
+                all.push(Pokemon {
+                    primary: *primary,
+                    secondary: Some(*secondary),
+                })
+            }
+        }
+        all
+    };
 }
