@@ -5,3 +5,6 @@ authors = ["Paul Blouët <paul@paulblouet.fr>"]
 edition = "2018"
 
 [dependencies]
+anyhow = "1.0.28"
+serde = "1.0.106"
+serde_json = "1.0.50"
