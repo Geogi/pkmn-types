@@ -1,0 +1,7 @@
+[package]
+name = "pkmn-types"
+version = "0.1.0"
+authors = ["Paul Blouët <paul@paulblouet.fr>"]
+edition = "2018"
+
+[dependencies]
