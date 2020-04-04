@@ -1,9 +1,9 @@
-use lazy_static::lazy_static;
+pub mod sample;
 
 #[derive(Debug, Copy, Clone, Eq, PartialEq, Ord, PartialOrd)]
 pub enum Type {
     Normal,
-    Fight,
+    Fighting,
     Flying,
     Poison,
     Ground,
@@ -40,14 +40,14 @@ impl Type {
                 Ghost => Nothing,
                 _ => Simple,
             },
-            Fight => match other {
+            Fighting => match other {
                 Normal | Rock | Steel | Dark | Ice => Double,
                 Flying | Poison | Bug | Psychic | Fairy => Half,
                 Ghost => Nothing,
                 _ => Simple,
             },
             Flying => match other {
-                Fight | Bug | Grass => Double,
+                Fighting | Bug | Grass => Double,
                 Rock | Steel | Electric => Half,
                 _ => Simple,
             },
@@ -65,12 +65,12 @@ impl Type {
             },
             Rock => match other {
                 Flying | Bug | Fire | Ice => Double,
-                Fight | Ground | Steel => Half,
+                Fighting | Ground | Steel => Half,
                 _ => Simple,
             },
             Bug => match other {
                 Grass | Psychic | Dark => Double,
-                Fight | Flying | Poison | Ghost | Steel | Fire | Fairy => Half,
+                Fighting | Flying | Poison | Ghost | Steel | Fire | Fairy => Half,
                 _ => Simple,
             },
             Ghost => match other {
@@ -106,7 +106,7 @@ impl Type {
                 _ => Simple,
             },
             Psychic => match other {
-                Fight | Poison => Double,
+                Fighting | Poison => Double,
                 Steel | Psychic => Half,
                 Dark => Nothing,
                 _ => Simple,
@@ -124,11 +124,11 @@ impl Type {
             },
             Dark => match other {
                 Ghost | Psychic => Double,
-                Fight | Dark | Fairy => Half,
+                Fighting | Dark | Fairy => Half,
                 _ => Simple,
             },
             Fairy => match other {
-                Fight | Dragon | Dark => Double,
+                Fighting | Dragon | Dark => Double,
                 Poison | Steel | Fire => Half,
                 _ => Simple,
             },
@@ -142,11 +142,14 @@ pub struct Pokemon {
     pub secondary: Option<Type>,
 }
 
+#[derive(Debug, Clone, Eq, PartialEq)]
+pub struct SamplePokemon(pub &'static str, pub Pokemon);
+
 #[derive(Debug, Copy, Clone, Eq, PartialEq, Ord, PartialOrd)]
 pub enum Resistance {
     DoublyWeak,
     Weak,
-    Standard,
+    Regular,
     Resistant,
     DoublyResistant,
     Immune,
@@ -161,7 +164,7 @@ impl Pokemon {
             let ef_s = move_type.attack(secondary);
             match (ef_p, ef_s) {
                 (Nothing, _) | (_, Nothing) => Immune,
-                (Simple, Simple) | (Half, Double) | (Double, Half) => Standard,
+                (Simple, Simple) | (Half, Double) | (Double, Half) => Regular,
                 (Simple, Half) | (Half, Simple) => Resistant,
                 (Simple, Double) | (Double, Simple) => Weak,
                 (Half, Half) => DoublyResistant,
@@ -169,7 +172,7 @@ impl Pokemon {
             }
         } else {
             match move_type.attack(self.primary) {
-                Simple => Standard,
+                Simple => Regular,
                 Double => Weak,
                 Half => Resistant,
                 Nothing => Immune,
@@ -178,33 +181,23 @@ impl Pokemon {
     }
 }
 
-lazy_static! {
-    pub static ref ALL_TYPES: Vec<Type> = {
-        use Type::*;
-        vec![
-            Normal, Fight, Flying, Poison, Ground, Rock, Bug, Ghost, Steel, Fire, Water, Grass,
-            Electric, Psychic, Ice, Dragon, Dark, Fairy,
-        ]
-    };
-    pub static ref ALL_POKEMON_NAIVE: Vec<Pokemon> = {
-        let mut all = vec![];
-        for single in &*ALL_TYPES {
-            all.push(Pokemon {
-                primary: *single,
-                secondary: None,
-            })
-        }
-        for primary in &*ALL_TYPES {
-            for secondary in &*ALL_TYPES {
-                if primary >= secondary {
-                    continue;
-                }
-                all.push(Pokemon {
-                    primary: *primary,
-                    secondary: Some(*secondary),
-                })
-            }
-        }
-        all
-    };
-}
+pub static ALL_TYPES: &[Type] = &[
+    Type::Normal,
+    Type::Fighting,
+    Type::Flying,
+    Type::Poison,
+    Type::Ground,
+    Type::Rock,
+    Type::Bug,
+    Type::Ghost,
+    Type::Steel,
+    Type::Fire,
+    Type::Water,
+    Type::Grass,
+    Type::Electric,
+    Type::Psychic,
+    Type::Ice,
+    Type::Dragon,
+    Type::Dark,
+    Type::Fairy,
+];

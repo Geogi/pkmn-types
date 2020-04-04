@@ -5,6 +5,4 @@ authors = ["Paul Blouët <paul@paulblouet.fr>"]
 edition = "2018"
 
 [dependencies]
-anyhow = "1.0.28"
 clap = "2.33.0"
-lazy_static = "1.4.0"

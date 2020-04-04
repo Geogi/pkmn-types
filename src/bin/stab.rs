@@ -1,5 +1,7 @@
 use clap::{arg_enum, value_t, App, Arg};
-use pkmn_types::{Pokemon, Resistance, Type, ALL_POKEMON_NAIVE};
+use pkmn_types::sample::SAMPLE_POKEMON;
+use pkmn_types::Resistance::{Regular, Resistant, Weak};
+use pkmn_types::{Pokemon, Resistance, SamplePokemon, Type};
 
 fn main() {
     let _m = App::new("stab")
@@ -48,37 +50,101 @@ fn main() {
             .unwrap_or_else(|_| unreachable!())
             .into(),
     };
-    let mut uncovered = vec![];
-    for pokemon in &*ALL_POKEMON_NAIVE {
-        if pokemon.resist(p1.primary) < Resistance::Standard {
-            continue;
-        }
-        if let Some(secondary) = p1.secondary {
-            if pokemon.resist(secondary) < Resistance::Standard {
-                continue;
+    let mut resist_stab = vec![];
+    let mut not_weak_stab = vec![];
+    let mut unsafe_stab = vec![];
+    let mut safe_count = 0;
+    for sample_pokemon in SAMPLE_POKEMON {
+        let SamplePokemon(_, opp) = sample_pokemon;
+        let mut stabbers = vec![];
+        let mut stabbers_str = vec![];
+        let mut stab_safe = false;
+        for (n, p) in vec![("P1", p1), ("P2", p2), ("P3", p3)] {
+            if let Some(t) = find_stab(&p, opp) {
+                stabbers.push(p);
+                if let Some(t2) = find_stab(opp, &p) {
+                    stabbers_str.push(format!("{} with {:?} (unsafe because {:?})", n, t, t2));
+                } else {
+                    stab_safe = true;
+                    stabbers_str.push(format!("{} with {:?}", n, t));
+                }
             }
         }
-        if pokemon.resist(p2.primary) < Resistance::Standard {
-            continue;
-        }
-        if let Some(secondary) = p2.secondary {
-            if pokemon.resist(secondary) < Resistance::Standard {
-                continue;
+        if stabbers.is_empty() {
+            println!("{}: cannot stab.", sample_pokemon.format_type());
+            if vec![p1, p2, p3]
+                .iter()
+                .all(|p| resist_at_least(p, opp, Resistant))
+            {
+                resist_stab.push(sample_pokemon);
+            } else {
+                not_weak_stab.push(sample_pokemon);
+            }
+        } else {
+            println!(
+                "{}: {}.",
+                sample_pokemon.format_type(),
+                stabbers_str.join(", ")
+            );
+            if stab_safe {
+                safe_count += 1;
+            } else {
+                unsafe_stab.push(sample_pokemon);
             }
         }
-        if pokemon.resist(p3.primary) < Resistance::Standard {
-            continue;
-        }
-        if let Some(secondary) = p3.secondary {
-            if pokemon.resist(secondary) < Resistance::Standard {
-                continue;
-            }
-        }
-        uncovered.push(pokemon);
     }
-    for pokemon in uncovered {
+    println!();
+    println!(
+        "{} type variations resist stabbing (reduced damage or less):",
+        resist_stab.len()
+    );
+    for pokemon in &resist_stab {
         println!("{}", pokemon.format_type());
     }
+    println!();
+    println!(
+        "{} type variations are not weak to stabbing (standard damage):",
+        not_weak_stab.len()
+    );
+    for pokemon in &not_weak_stab {
+        println!("{}", pokemon.format_type());
+    }
+    println!();
+    println!(
+        "{} type variations are unsafe to stab (superior damage but same for the opponent):",
+        unsafe_stab.len()
+    );
+    for pokemon in &unsafe_stab {
+        println!("{}", pokemon.format_type());
+    }
+    println!();
+    println!("summary:");
+    println!("{} types resist stabbing.", resist_stab.len());
+    println!("{} types not weak to stabbing.", not_weak_stab.len());
+    println!("{} types unsafe to stab.", unsafe_stab.len());
+    println!("{} types safe to stab.", safe_count);
+    println!();
+}
+
+fn resist_at_least(attacker: &Pokemon, defender: &Pokemon, level: Resistance) -> bool {
+    defender.resist(attacker.primary) >= level
+        && attacker
+            .secondary
+            .map(|t| defender.resist(t) >= level)
+            .unwrap_or(true)
+}
+
+fn find_stab(attacker: &Pokemon, defender: &Pokemon) -> Option<Type> {
+    if defender.resist(attacker.primary) <= Weak {
+        return Some(attacker.primary);
+    } else {
+        if let Some(secondary) = attacker.secondary {
+            if defender.resist(secondary) <= Weak {
+                return Some(secondary);
+            }
+        }
+    }
+    None
 }
 
 arg_enum! {
@@ -111,7 +177,7 @@ impl Into<Option<Type>> for MaybeType {
         match self {
             MaybeType::None => None,
             MaybeType::Normal => Some(Type::Normal),
-            MaybeType::Fight => Some(Type::Fight),
+            MaybeType::Fight => Some(Type::Fighting),
             MaybeType::Flying => Some(Type::Flying),
             MaybeType::Poison => Some(Type::Poison),
             MaybeType::Ground => Some(Type::Ground),
@@ -160,7 +226,7 @@ impl Into<Type> for CliType {
     fn into(self) -> Type {
         match self {
             CliType::Normal => Type::Normal,
-            CliType::Fight => Type::Fight,
+            CliType::Fight => Type::Fighting,
             CliType::Flying => Type::Flying,
             CliType::Poison => Type::Poison,
             CliType::Ground => Type::Ground,
@@ -185,12 +251,13 @@ trait PokemonExt {
     fn format_type(&self) -> String;
 }
 
-impl PokemonExt for Pokemon {
+impl PokemonExt for SamplePokemon {
     fn format_type(&self) -> String {
-        let mut out = format!("{:?}", self.primary);
-        if let Some(secondary) = self.secondary {
+        let mut out = format!("{:?}", self.1.primary);
+        if let Some(secondary) = self.1.secondary {
             out.push_str(&format!(" {:?}", secondary));
         }
+        out.push_str(&format!(" ({})", self.0));
         out
     }
 }
